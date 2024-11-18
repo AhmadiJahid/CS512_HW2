@@ -50,11 +50,9 @@ def compute_loss(y_true, y_pred):
     """
     return np.mean((y_pred - y_true) ** 2)
 
-# Step 3: SGD updates
-def sgd_update(X, y_true, weights, bias, learning_rate):
+def sgd_update_l1(X, y_true, weights, bias, learning_rate, lambda_reg):
     """
-    Perform a single step of SGD:
-    - Update weights and bias simultaneously.
+    Perform a single step of SGD with L1 regularization (LASSO).
     """
     n_samples = X.shape[0]
     
@@ -62,7 +60,7 @@ def sgd_update(X, y_true, weights, bias, learning_rate):
     y_pred = predict(X, weights, bias)
     
     # Gradients
-    dw = -(2 / n_samples) * np.dot(X.T, (y_true - y_pred))
+    dw = -(2 / n_samples) * np.dot(X.T, (y_true - y_pred)) + lambda_reg * np.sign(weights)
     db = -(2 / n_samples) * np.sum(y_true - y_pred)
     
     # Update weights and bias
@@ -71,10 +69,10 @@ def sgd_update(X, y_true, weights, bias, learning_rate):
     
     return weights, bias
 
-# Step 4: SGD training loop
-def train_sgd(X, y, epochs, learning_rate):
+
+def train_sgd_l1(X, y, epochs, learning_rate, lambda_reg):
     """
-    Train the linear regression model using SGD.
+    Train the linear regression model using SGD with L1 regularization.
     """
     n_features = X.shape[1]
     weights = np.zeros(n_features)  # Initialize weights to 0
@@ -83,12 +81,13 @@ def train_sgd(X, y, epochs, learning_rate):
     loss_history = []
     
     for epoch in range(epochs):
-        # Perform SGD update
-        weights, bias = sgd_update(X, y, weights, bias, learning_rate)
+        # Perform SGD update with L1 regularization
+        weights, bias = sgd_update_l1(X, y, weights, bias, learning_rate, lambda_reg)
         
         # Compute loss for this epoch
         y_pred = predict(X, weights, bias)
-        loss = compute_loss(y, y_pred)
+        # Loss includes regularization
+        loss = compute_loss(y, y_pred) + lambda_reg * np.sum(np.abs(weights))
         loss_history.append(loss)
         
         # Print loss every 10 epochs
@@ -96,6 +95,7 @@ def train_sgd(X, y, epochs, learning_rate):
             print(f"Epoch {epoch + 1}/{epochs}, Loss: {loss:.5f}")
     
     return weights, bias, loss_history
+
 
 # Step 5: Visualization
 def plot_loss(loss_history):
@@ -110,21 +110,30 @@ def plot_loss(loss_history):
     plt.legend()
     plt.show()
 
-# Example usage
 if __name__ == "__main__":
     # Split train_data into features (X) and target (y)
     X_train = train_data.drop(columns=['Sales']).values
     y_train = train_data['Sales'].values
     
     # Set hyperparameters
-    learning_rate = 0.01
+    learning_rate = 0.001
     epochs = 50
+    regularization_params = [1, 0.1, 0.001]  # L1 regularization strengths
     
-    # Train the model
-    weights, bias, loss_history = train_sgd(X_train, y_train, epochs, learning_rate)
+    # Train models with different regularization parameters
+    loss_histories = []
+    for lambda_reg in regularization_params:
+        print(f"Training with L1 regularization (lambda = {lambda_reg})...")
+        weights, bias, loss_history = train_sgd_l1(X_train, y_train, epochs, learning_rate, lambda_reg)
+        loss_histories.append((lambda_reg, loss_history))
     
-    # Plot the loss curve
-    plot_loss(loss_history)
+    # Plot the loss curves
+    plt.figure(figsize=(10, 6))
+    for lambda_reg, loss_history in loss_histories:
+        plt.plot(loss_history, label=f"L1 Regularization (λ={lambda_reg})")
     
-    print("Trained weights:", weights)
-    print("Trained bias:", bias)
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.title('Training Loss with L1 Regularization')
+    plt.legend()
+    plt.show()
