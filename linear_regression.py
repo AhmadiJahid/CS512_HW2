@@ -14,9 +14,9 @@ def binary_encode(df, columns):
 train_data = binary_encode(train_data, ['Urban', 'US'])
 test_data = binary_encode(test_data, ['Urban', 'US'])
 
-# One-hot encoding for 'ShelveLoc'
-train_data = pd.get_dummies(train_data, columns=['ShelveLoc'], drop_first=False)
-test_data = pd.get_dummies(test_data, columns=['ShelveLoc'], drop_first=False)
+# Correct one-hot encoding to ensure integer (0/1) values
+train_data = pd.get_dummies(train_data, columns=['ShelveLoc'], drop_first=False).astype(int)
+test_data = pd.get_dummies(test_data, columns=['ShelveLoc'], drop_first=False).astype(int)
 
 # Feature standardization
 def standardize_features(train, test, features):
