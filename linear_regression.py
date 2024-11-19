@@ -75,46 +75,67 @@ def sgd_update(X, y_true, weights, bias, learning_rate, regularization=None, lam
 def train_sgd(X, y, epochs, learning_rate, regularization=None, lambda_reg=0):
     """
     Train the linear regression model using SGD, with optional L1 regularization.
+    Tracks the training loss for each step (data point) during training.
+    
+    Parameters:
+        X (ndarray): Training data features (n_samples, n_features).
+        y (ndarray): True target values (n_samples,).
+        epochs (int): Number of epochs.
+        learning_rate (float): Learning rate.
+        regularization (str): Type of regularization ("l1" or None).
+        lambda_reg (float): Regularization strength (λ).
+    
+    Returns:
+        weights (ndarray): Final weights after training.
+        bias (float): Final bias after training.
+        step_losses (list): Step-wise training losses during training.
     """
-    n_features = X.shape[1]
-    weights = np.zeros(n_features)  # Initialize weights to 0
-    bias = 0  # Initialize bias to 0
-    
-    loss_history = []
-    
+    n_samples, n_features = X.shape
+    weights = np.zeros(n_features)  # Initialize weights
+    bias = 0  # Initialize bias
+    step_losses = []  # Track step-wise losses
+
     for epoch in range(epochs):
-        # Call sgd_update for a single step of SGD
-        weights, bias, y_pred = sgd_update(X, y, weights, bias, learning_rate, regularization, lambda_reg)
-        
-        loss = compute_loss(y, y_pred)
-        if regularization == "l1":
-            loss += lambda_reg * np.sum(np.abs(weights))
-        
-        loss_history.append(loss)
-        
-        # Optional: Print loss every 10 epochs
+        for i in range(n_samples):
+            # Get a single data point
+            X_i = X[i:i+1]
+            y_i = y[i:i+1]
+            
+            # Call sgd_update for a single step
+            weights, bias, y_pred = sgd_update(X_i, y_i, weights, bias, learning_rate, regularization, lambda_reg)
+            
+            # Compute loss for this step and append to step_losses
+            step_loss = compute_loss(y_i, y_pred)
+            if regularization == "l1":
+                step_loss += lambda_reg * np.sum(np.abs(weights))
+            step_losses.append(step_loss)
+
+        # Print progress every epoch
         if (epoch + 1) % 10 == 0:
-            print(f"Epoch {epoch + 1}/{epochs}, Loss: {loss:.5f}")
+            print(f"Epoch {epoch + 1}/{epochs}, Loss: {step_loss:.5f}")
     
-    return weights, bias, loss_history
-
-
-
-
+    return weights, bias, step_losses
 # Step 5: Visualization
-def plot_loss(loss_histories):
-    # Plot all training loss curves
-    plt.figure(figsize=(10, 6))
-    for label, loss_history in loss_histories:
-        plt.plot(loss_history, label=label)
+def smooth_curve(values, window_size=100):
+        return np.convolve(values, np.ones(window_size)/window_size, mode='valid')
 
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.title('Training Loss for Different Configurations')
+def plot_loss(loss_histories):
+    # Plot step-wise training loss
+    plt.figure(figsize=(10, 6))
+
+    
+
+    for label, step_losses in loss_histories:
+        smoothed_losses = smooth_curve(step_losses)
+        plt.plot(range(len(smoothed_losses)), smoothed_losses, label=label)
+
+
+    plt.xlabel("Training Step")
+    plt.ylabel("Loss")
+    plt.title("Step-wise Training Loss for Different Configurations")
     plt.legend()
     plt.grid(True)
     plt.show()
-
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     import numpy as np
