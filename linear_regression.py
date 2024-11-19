@@ -119,16 +119,42 @@ def train_sgd(X, y, epochs, learning_rate, regularization=None, lambda_reg=0):
 def smooth_curve(values, window_size=100):
         return np.convolve(values, np.ones(window_size)/window_size, mode='valid')
 
-def plot_loss(loss_histories):
-    # Plot step-wise training loss
-    plt.figure(figsize=(10, 6))
-
+# Plotting Function for Coefficient Magnitudes
+def plot_coefficients(log_lambdas, lasso_weights, feature_names):
+    """
+    Plots coefficient magnitudes for LASSO regularized models.
     
+    Parameters:
+        log_lambdas (list): Logarithmic values of lambda (regularization strengths).
+        lasso_weights (ndarray): Coefficient weights for each lambda.
+        feature_names (list): Names of features.
+    """
+    plt.figure(figsize=(10, 6))
+    for i, feature in enumerate(feature_names):
+        plt.plot(log_lambdas, lasso_weights[:, i], label=feature)
 
+    plt.xlabel("log(λ)")
+    plt.ylabel("Coefficient Magnitude")
+    plt.title("Coefficient Magnitudes for LASSO Regularized Models")
+    plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize=8)
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+
+# Plotting Function for Training Loss
+def plot_loss(loss_histories, window_size=100):
+    """
+    Plots step-wise training loss for different configurations.
+    
+    Parameters:
+        loss_histories (list): A list of tuples containing (label, step_losses).
+        window_size (int): Size of the window for smoothing the curves.
+    """
+    plt.figure(figsize=(10, 6))
     for label, step_losses in loss_histories:
-        smoothed_losses = smooth_curve(step_losses)
+        smoothed_losses = smooth_curve(step_losses, window_size)
         plt.plot(range(len(smoothed_losses)), smoothed_losses, label=label)
-
 
     plt.xlabel("Training Step")
     plt.ylabel("Loss")
@@ -136,13 +162,14 @@ def plot_loss(loss_histories):
     plt.legend()
     plt.grid(True)
     plt.show()
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-    import numpy as np
 
+
+# Main Execution
+if __name__ == "__main__":
     # Split train_data into features (X) and target (y)
     X_train = train_data.drop(columns=['Sales']).values
     y_train = train_data['Sales'].values
+    feature_names = train_data.drop(columns=['Sales']).columns.tolist()
 
     # Set hyperparameters and configurations
     epochs = 50
@@ -154,8 +181,10 @@ if __name__ == "__main__":
         {"regularization": "l1", "learning_rate": 0.001, "lambda_reg": 0.001, "label": "L1 Regularization (λ=0.001, η=0.001)"}
     ]
 
-    # Train models and store loss histories
+    # Train models and store loss histories and weights for LASSO configurations
     loss_histories = []
+    lasso_lambdas = []  # Regularization strengths for LASSO
+    lasso_weights = []  # To store weights for LASSO configurations
 
     for config in configurations:
         print(f"Training: {config['label']}")
@@ -169,5 +198,18 @@ if __name__ == "__main__":
         )
         loss_histories.append((config["label"], loss_history))
 
+        # For LASSO configurations, store the final weights and λ
+        if config["regularization"] == "l1":
+            lasso_lambdas.append(config["lambda_reg"])
+            lasso_weights.append(weights)
+
+    # Plot training loss for all configurations (Part a)
     plot_loss(loss_histories)
+
+    # Plot coefficient magnitudes for LASSO models (Part b)
+    if lasso_lambdas:
+        log_lambdas = np.log(lasso_lambdas)  # Use log(λ) for the x-axis
+        lasso_weights = np.array(lasso_weights)  # Convert weights to numpy array
+        plot_coefficients(log_lambdas, lasso_weights, feature_names)
+
 
