@@ -144,13 +144,6 @@ def plot_coefficients(log_lambdas, lasso_weights, feature_names):
 
 # Plotting Function for Training Loss
 def plot_loss(loss_histories, window_size=100):
-    """
-    Plots step-wise training loss for different configurations.
-    
-    Parameters:
-        loss_histories (list): A list of tuples containing (label, step_losses).
-        window_size (int): Size of the window for smoothing the curves.
-    """
     plt.figure(figsize=(10, 6))
     for label, step_losses in loss_histories:
         smoothed_losses = smooth_curve(step_losses, window_size)
@@ -164,12 +157,33 @@ def plot_loss(loss_histories, window_size=100):
     plt.show()
 
 
-# Main Execution
+# Evaluate Test Loss
+def evaluate_test_loss(X_test, y_test, weights, bias):
+    y_pred = predict(X_test, weights, bias)
+    test_loss = compute_loss(y_test, y_pred)
+    return test_loss
+
+def display_test_results(test_results):
+    # Convert the results to a DataFrame
+    results_df = pd.DataFrame(test_results)
+    results_df = results_df.sort_values(by="Test Loss", ascending=True)
+
+
+    # Print a formatted table
+    print("\nTest Loss Results (Neatly Structured):\n")
+    print(results_df.to_markdown(index=False, tablefmt="grid"))
+
 if __name__ == "__main__":
+    import pandas as pd
+
     # Split train_data into features (X) and target (y)
     X_train = train_data.drop(columns=['Sales']).values
     y_train = train_data['Sales'].values
     feature_names = train_data.drop(columns=['Sales']).columns.tolist()
+
+    # Split test_data into features (X) and target (y)
+    X_test = test_data.drop(columns=['Sales']).values
+    y_test = test_data['Sales'].values
 
     # Set hyperparameters and configurations
     epochs = 50
@@ -181,13 +195,15 @@ if __name__ == "__main__":
         {"regularization": "l1", "learning_rate": 0.001, "lambda_reg": 0.001, "label": "L1 Regularization (λ=0.001, η=0.001)"}
     ]
 
-    # Train models and store loss histories and weights for LASSO configurations
+    # Train models and store loss histories, weights, and test losses
     loss_histories = []
     lasso_lambdas = []  # Regularization strengths for LASSO
     lasso_weights = []  # To store weights for LASSO configurations
+    test_results = []   # To store test loss results
 
     for config in configurations:
         print(f"Training: {config['label']}")
+        # Train the model
         weights, bias, loss_history = train_sgd(
             X_train,
             y_train,
@@ -196,14 +212,22 @@ if __name__ == "__main__":
             regularization=config["regularization"],
             lambda_reg=config["lambda_reg"]
         )
+        # Store training loss for visualization
         loss_histories.append((config["label"], loss_history))
 
-        # For LASSO configurations, store the final weights and λ
+        # Evaluate and store test loss
+        test_loss = evaluate_test_loss(X_test, y_test, weights, bias)
+        test_results.append({
+            "Configuration": config["label"],
+            "Test Loss": round(test_loss, 5)
+        })
+
+        # For LASSO configurations, store weights for coefficient magnitude plotting
         if config["regularization"] == "l1":
             lasso_lambdas.append(config["lambda_reg"])
             lasso_weights.append(weights)
 
-    # Plot training loss for all configurations (Part a)
+    # Plot training loss for all configurations
     plot_loss(loss_histories)
 
     # Plot coefficient magnitudes for LASSO models (Part b)
@@ -211,5 +235,9 @@ if __name__ == "__main__":
         log_lambdas = np.log(lasso_lambdas)  # Use log(λ) for the x-axis
         lasso_weights = np.array(lasso_weights)  # Convert weights to numpy array
         plot_coefficients(log_lambdas, lasso_weights, feature_names)
+
+    # Display test results in a neat table
+    display_test_results(test_results)
+
 
 
